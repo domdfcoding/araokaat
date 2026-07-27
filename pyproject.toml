@@ -1,0 +1,81 @@
+[build-system]
+requires = [ "whey",]
+build-backend = "whey"
+
+[project]
+name = "araokaat"
+version = "0.0.0"
+description = "Python progressbar for CLI applications."
+readme = "README.rst"
+keywords = [
+    "bar",
+    "console",
+    "eta",
+    "meter",
+    "progress",
+    "progressbar",
+    "progressmeter",
+    "rate",
+    "terminal",
+    "time",
+]
+dynamic = [ "requires-python", "classifiers", "dependencies",]
+
+[project.license]
+file = "LICENSE"
+
+[[project.authors]]
+name = "Dominic Davis-Foster"
+email = "dominic@davis-foster.co.uk"
+
+[project.urls]
+Homepage = "https://github.com/domdfcoding/araokaat"
+"Issue Tracker" = "https://github.com/domdfcoding/araokaat/issues"
+"Source Code" = "https://github.com/domdfcoding/araokaat"
+
+[tool.whey]
+base-classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces",
+    "Topic :: System :: Installation/Setup",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Shells",
+    "Topic :: Terminals",
+    "Topic :: Utilities",
+]
+python-versions = [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13",]
+python-implementations = [ "CPython",]
+platforms = [ "Windows", "macOS", "Linux",]
+license-key = "MPL"
+
+[tool.mypy]
+python_version = "3.9"
+namespace_packages = true
+check_untyped_defs = true
+warn_unused_ignores = true
+no_implicit_optional = true
+show_error_codes = true
+
+[tool.dependency-dash."requirements.txt"]
+order = 10
+
+[tool.dependency-dash."tests/requirements.txt"]
+order = 20
+include = false
+
+[tool.snippet-fmt]
+directives = [ "code-block",]
+
+[tool.snippet-fmt.languages.python]
+reformat = true
+
+[tool.snippet-fmt.languages.TOML]
+reformat = true
+
+[tool.snippet-fmt.languages.ini]
+
+[tool.snippet-fmt.languages.json]
