@@ -6,7 +6,7 @@ author: 'Dominic Davis-Foster'
 email: 'dominic@davis-foster.co.uk'
 username: 'domdfcoding'
 version: '0.0.0'
-license: 'MPL'
+license: 'MPL-2.0'
 short_desc: 'Python progressbar for CLI applications.'
 
 enable_conda: false
