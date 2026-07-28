@@ -530,7 +530,7 @@ def test_max_interval():
 					miniters=None,
 					mininterval=0,
 					smoothing=1,
-					maxinterval=None,
+					maxinterval=0,
 					)
 			cpu_timify(t2, timer)
 
@@ -769,7 +769,7 @@ def test_dynamic_min_iters():
 				range(10),
 				file=our_file,
 				miniters=None,
-				mininterval=None,
+				mininterval=0,
 				smoothing=0.5,
 				)
 		for _ in t2:
@@ -782,7 +782,7 @@ def test_dynamic_min_iters():
 				range(10),
 				file=our_file,
 				miniters=None,
-				mininterval=None,
+				mininterval=0,
 				smoothing=0,
 				)
 		for _ in t2:
@@ -791,7 +791,7 @@ def test_dynamic_min_iters():
 
 	# No dynamic_miniters (miniters is fixed manually)
 	with closing(StringIO()) as our_file:
-		t2 = araokaat(range(10), file=our_file, miniters=1, mininterval=None)
+		t2 = araokaat(range(10), file=our_file, miniters=1, mininterval=0)
 		for _ in t2:
 			pass
 		assert not t2.dynamic_miniters
@@ -1130,7 +1130,7 @@ def test_smoothing():
 
 	# -- Test disabling smoothing
 	with closing(StringIO()) as our_file:
-		with araokaat(range(3), file=our_file, smoothing=None, leave=True) as t:
+		with araokaat(range(3), file=our_file, smoothing=0, leave=True) as t:
 			cpu_timify(t, timer)
 
 			for _ in t:
@@ -1144,7 +1144,7 @@ def test_smoothing():
 			t = araokaat(
 					range(3),
 					file=our_file2,
-					smoothing=None,
+					smoothing=0,
 					leave=True,
 					miniters=1,
 					mininterval=0,
@@ -1154,7 +1154,7 @@ def test_smoothing():
 			with araokaat(
 					range(3),
 					file=our_file,
-					smoothing=None,
+					smoothing=0,
 					leave=True,
 					miniters=1,
 					mininterval=0,

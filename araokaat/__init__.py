@@ -282,15 +282,15 @@ class araokaat(Generic[_T]):
 			leave: bool = True,
 			file: Optional[TextIO] = None,
 			ncols: Optional[int] = None,
-			mininterval: Optional[float] = 0.1,
-			maxinterval: Optional[float] = 10.0,
+			mininterval: float = 0.1,
+			maxinterval: float = 10.0,
 			miniters: Optional[float] = None,
 			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
 			disable: Optional[bool] = False,
 			unit: str = "it",
 			unit_scale: Union[bool, float] = False,
 			dynamic_ncols: bool = False,
-			smoothing: Optional[float] = 0.3,
+			smoothing: float = 0.3,
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
@@ -311,15 +311,15 @@ class araokaat(Generic[_T]):
 			leave: bool = True,
 			file: Optional[TextIO] = None,
 			ncols: Optional[int] = None,
-			mininterval: Optional[float] = 0.1,
-			maxinterval: Optional[float] = 10.0,
+			mininterval: float = 0.1,
+			maxinterval: float = 10.0,
 			miniters: Optional[float] = None,
 			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
 			disable: Optional[bool] = False,
 			unit: str = "it",
 			unit_scale: Union[bool, float] = False,
 			dynamic_ncols: bool = False,
-			smoothing: Optional[float] = 0.3,
+			smoothing: float = 0.3,
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
@@ -339,15 +339,15 @@ class araokaat(Generic[_T]):
 			leave: bool = True,
 			file: Optional[TextIO] = None,
 			ncols: Optional[int] = None,
-			mininterval: Optional[float] = 0.1,
-			maxinterval: Optional[float] = 10.0,
+			mininterval: float = 0.1,
+			maxinterval: float = 10.0,
 			miniters: Optional[float] = None,
 			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
 			disable: Optional[bool] = False,
 			unit: str = "it",
 			unit_scale: Union[bool, float] = False,
 			dynamic_ncols: bool = False,
-			smoothing: Optional[float] = 0.3,
+			smoothing: float = 0.3,
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
@@ -408,12 +408,6 @@ class araokaat(Generic[_T]):
 		else:
 			dynamic_miniters = False
 
-		if mininterval is None:
-			mininterval = 0
-
-		if maxinterval is None:
-			maxinterval = 0
-
 		if ascii is None:
 			ascii = not _supports_unicode(file)  # noqa: A001  # pylint: disable=redefined-builtin
 
@@ -421,9 +415,6 @@ class araokaat(Generic[_T]):
 			if not ascii or (isinstance(ascii, str) and not _is_ascii(ascii)):
 				# Convert bar format into unicode since terminal uses unicode
 				bar_format = str(bar_format)
-
-		if smoothing is None:
-			smoothing = 0
 
 		# Store the arguments
 		self.iterable = iterable
