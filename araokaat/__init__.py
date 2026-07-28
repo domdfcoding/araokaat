@@ -39,12 +39,14 @@ from time import time
 from typing import (
 		Any,
 		Callable,
+		ClassVar,
 		Dict,
 		Generic,
 		Iterable,
 		Iterator,
 		Mapping,
 		Optional,
+		Set,
 		TextIO,
 		Type,
 		TypeVar,
@@ -63,9 +65,12 @@ from araokaat._utils import (
 		DefaultWriteLock,
 		DisableOnWriteError,
 		FormatReplace,
+		SupportsFormat,
 		_is_ascii,
 		_screen_shape_wrapper,
+		_ScreenSize,
 		_supports_unicode,
+		colorama,
 		disp_len,
 		disp_trim
 		)
@@ -81,7 +86,7 @@ class MonitorWarning(RuntimeWarning):
 
 class Bar:
 	"""
-	``str.format``-able bar with format specifiers: `[width][type]`
+	``str.format``-able bar with format specifiers: ``[width][type]``.
 
 	- ``width``
 	  + unspecified (default): use ``self.default_len``
@@ -91,6 +96,11 @@ class Bar:
 	  + ``a``: ascii (``charset=self.ASCII`` override)
 	  + ``u``: unicode (``charset=self.UTF`` override)
 	  + ``b``: blank (``charset="  "`` override)
+
+	:param frac:
+	:param default_len:
+	:param charset:
+	:param colour:
 	"""
 
 	ASCII = " 123456789#"
@@ -109,12 +119,12 @@ class Bar:
 			"WHITE": "\u001b[37m",
 			}
 
-	frac: int
+	frac: float
 	default_len: int
 	charset: str
 	_colour: Optional[str]
 
-	def __init__(self, frac: int, default_len: int = 10, charset: str = UTF, colour: Optional[str] = None):
+	def __init__(self, frac: float, default_len: int = 10, charset: str = UTF, colour: Optional[str] = None):
 		if not 0 <= frac <= 1:
 			warn("clamping frac to range [0, 1]", stacklevel=2)
 			frac = max(0, min(1, frac))
@@ -127,6 +137,10 @@ class Bar:
 
 	@property
 	def colour(self) -> Optional[str]:
+		"""
+		The bar colour.
+		"""
+
 		return self._colour
 
 	@colour.setter
@@ -211,14 +225,13 @@ class araokaat(Generic[_T]):
 		If ``> 0`` will skip display of specified number of iterations.
 		Tweak this and ``mininterval`` to get very efficient loops.
 		If your progress is erratic with both fast and slow iterations (network, skipping items, etc.) you should set ``miniters=1``.
-	:param ascii:If unspecified or :py:obj:`False`, use unicode (smooth blocks) to fill the meter.
+	:param ascii: If unspecified or :py:obj:`False`, use unicode (smooth blocks) to fill the meter.
 		The fallback is to use ASCII characters `` 123456789#``.
-	:param disable: Whether to disable the entire progress bar wrapper
+	:param disable: Whether to disable the entire progress bar wrapper.
 		If :py:obj:`None`, disable on non-TTY.
 	:param unit: String that will be used to define the unit of each iteration
 	:param unit_scale: If ``1`` or :py:obj:`True`,
-		the number of iterations will be reduced/scaled automatically and a metric prefix following the
-		International System of Units standard will be added (kilo, mega, etc.)
+		the number of iterations will be reduced/scaled automatically and an SI prefix will be added (kilo, mega, etc.).
 		If any other non-zero number will scale ``total`` and ``n``.
 	:param dynamic_ncols: If set, constantly alters ``ncols`` and ``nrows`` to the environment (allowing for window resizes).
 	:param smoothing: Exponential moving average smoothing factor for speed estimates.
@@ -226,13 +239,12 @@ class araokaat(Generic[_T]):
 	:param bar_format: Specify a custom bar string formatting. May impact performance.
 		[default: '{l_bar}{bar}{r_bar}'], where
 		l_bar='{desc}: {percentage:3.0f}%|' and
-		r_bar='| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, '
-			'{rate_fmt}{postfix}]'
+		r_bar='| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]'
 		Possible vars: ``l_bar``, ``bar``, ``r_bar``, ``n``, ``n_fmt``, ``total``, ``total_fmt``,
-			``percentage``, ``elapsed``, ``elapsed_s``, ``ncols``, ``nrows``, ``desc``, ``unit``,
-			``rate``, ``rate_fmt``, ``rate_noinv``, ``rate_noinv_fmt``,
-			``rate_inv``, ``rate_inv_fmt``, ``postfix``, ``unit_divisor``,
-			``remaining``, ``remaining_s``, ``eta``.
+		``percentage``, ``elapsed``, ``elapsed_s``, ``ncols``, ``nrows``, ``desc``, ``unit``,
+		``rate``, ``rate_fmt``, ``rate_noinv``, ``rate_noinv_fmt``,
+		``rate_inv``, ``rate_inv_fmt``, ``postfix``, ``unit_divisor``,
+		``remaining``, ``remaining_s``, ``eta``.
 		Note that a trailing ": " is automatically removed after ``{desc}`` if the latter is empty.
 	:param initial: The initial counter value. Useful when restarting a progress bar.
 		If using float, consider specifying ``{n:.3f}`` or similar in ``bar_format``,
@@ -255,7 +267,10 @@ class araokaat(Generic[_T]):
 
 	monitor_interval = 10  # set to 0 to disable the thread
 	monitor = None
-	_instances = WeakSet()
+	_instances: Set["araokaat"] = WeakSet()  # type: ignore[assignment]
+	_lock: ClassVar[DefaultWriteLock]
+	disable: bool
+	_ema_dt: Callable[..., Optional[float]]
 
 	def __init__(
 			self,
@@ -269,7 +284,7 @@ class araokaat(Generic[_T]):
 			maxinterval: Optional[float] = 10.0,
 			miniters: Optional[float] = None,
 			ascii: Union[bool, str, None] = None,  # noqa: A002  # pylint: disable=redefined-builtin
-			disable: bool = False,
+			disable: Optional[bool] = False,
 			unit: str = "it",
 			unit_scale: Union[bool, float] = False,
 			dynamic_ncols: bool = False,
@@ -287,14 +302,14 @@ class araokaat(Generic[_T]):
 		if file is None:
 			file = sys.stderr
 
-		file = DisableOnWriteError(file, instance=self)
+		file = DisableOnWriteError(file, instance=self)  # type: ignore[assignment]
 
-		if disable is None and hasattr(file, "isatty") and not file.isatty():
-			disable = True
+		if disable is None:
+			disable = (hasattr(file, "isatty") and not file.isatty())
 
 		if total is None and iterable is not None:
 			try:
-				total = len(iterable)
+				total = len(iterable)  # type: ignore[arg-type]
 			except (TypeError, AttributeError):
 				total = None
 		if total == float("inf"):
@@ -313,20 +328,19 @@ class araokaat(Generic[_T]):
 			return
 
 		# Preprocess the arguments
-		if ((ncols is None or nrows is None) and
-			(file in (sys.stderr, sys.stdout))) or dynamic_ncols:  # pragma: no cover
+		dynamic_ncols_fn: Optional[Callable[[TextIO], _ScreenSize]] = None
+		_auto_ncols = ((ncols is None or nrows is None) and (file in (sys.stderr, sys.stdout)))
+		if _auto_ncols or dynamic_ncols:  # pragma: no cover
 			if dynamic_ncols:
-				dynamic_ncols = _screen_shape_wrapper()
-				if dynamic_ncols:
-					ncols, nrows = dynamic_ncols(file)
+				dynamic_ncols_fn = _screen_shape_wrapper()
+				ncols, nrows = dynamic_ncols_fn(file)
 			else:
 				_dynamic_ncols = _screen_shape_wrapper()
-				if _dynamic_ncols:
-					_ncols, _nrows = _dynamic_ncols(file)
-					if ncols is None:
-						ncols = _ncols
-					if nrows is None:
-						nrows = _nrows
+				_ncols, _nrows = _dynamic_ncols(file)
+				if ncols is None:
+					ncols = _ncols
+				if nrows is None:
+					nrows = _nrows
 
 		if miniters is None:
 			miniters = 0
@@ -341,11 +355,12 @@ class araokaat(Generic[_T]):
 			maxinterval = 0
 
 		if ascii is None:
-			ascii = not _supports_unicode(file)  # noqa: A002
+			ascii = not _supports_unicode(file)  # noqa: A001  # pylint: disable=redefined-builtin
 
-		if bar_format and ascii is not True and not _is_ascii(ascii):
-			# Convert bar format into unicode since terminal uses unicode
-			bar_format = str(bar_format)
+		if bar_format:
+			if not ascii or (isinstance(ascii, str) and not _is_ascii(ascii)):
+				# Convert bar format into unicode since terminal uses unicode
+				bar_format = str(bar_format)
 
 		if smoothing is None:
 			smoothing = 0
@@ -355,14 +370,14 @@ class araokaat(Generic[_T]):
 		self.desc = desc or ''
 		self.total = total
 		self.leave = leave
-		self.fp = file
+		self.fp: TextIO = file
 		self.ncols = ncols
 		self.nrows = nrows
 		self.mininterval = mininterval
 		self.maxinterval = maxinterval
 		self.miniters = miniters
 		self.dynamic_miniters = dynamic_miniters
-		self.ascii = ascii
+		self.ascii: Union[str, bool] = ascii
 		self.disable = disable
 		self.unit = unit
 		self.unit_scale = unit_scale
@@ -370,13 +385,13 @@ class araokaat(Generic[_T]):
 		self.initial = initial
 		self.lock_args = lock_args
 		self.delay = delay
-		self.dynamic_ncols = dynamic_ncols
+		self.dynamic_ncols = dynamic_ncols_fn
 		self.smoothing = smoothing
 		self._ema_dn = EMA(smoothing)
 		self._ema_dt = EMA(smoothing)
 		self._ema_miniters = EMA(smoothing)
 		self.bar_format = bar_format
-		self.postfix = None
+		self.postfix: Union[str, Mapping[str, Any], None] = None
 		self.colour = colour
 		self._time = time
 		if postfix:
@@ -426,9 +441,9 @@ class araokaat(Generic[_T]):
 		return f'{num:3.1f}Y{suffix}'
 
 	@staticmethod
-	def format_interval(t: int) -> str:
+	def format_interval(t: float) -> str:
 		"""
-		Formats a number of seconds as a clock time, [H:]MM:SS
+		Formats a number of seconds as a clock time ``[H:]MM:SS``.
 
 		:param t: Number of seconds.
 
@@ -451,8 +466,8 @@ class araokaat(Generic[_T]):
 		"""
 
 		f = f'{n:.3g}'.replace("e+0", "e+").replace("e-0", "e-")
-		n = str(n)
-		return f if len(f) < len(n) else n
+		n_str = str(n)
+		return f if len(f) < len(n_str) else n_str
 
 	@staticmethod
 	def status_printer(file: TextIO) -> Callable[[str], None]:
@@ -485,33 +500,32 @@ class araokaat(Generic[_T]):
 	def format_meter(
 			self,
 			n: float,
-			total: float,
+			total: Optional[float],
 			elapsed: float,
 			ncols: Optional[int] = None,
 			prefix: Optional[str] = '',
-			ascii: Union[bool, str, None] = False,  # noqa: A002
-			unit: Optional[str] = "it",
+			ascii: Union[bool, str, None] = False,  # noqa: A002  # pylint: disable=redefined-builtin
+			unit: str = "it",
 			unit_scale: Union[bool, float, None] = False,
 			rate: Optional[float] = None,
 			bar_format: Optional[str] = None,
-			postfix: Union[str, Mapping[str, Any], None] = None,
-			unit_divisor: Optional[float] = 1000,
-			initial: Optional[float] = 0,
+			postfix: Optional[str] = None,
+			unit_divisor: float = 1000,
+			initial: float = 0,
 			colour: Optional[str] = None,
-			**extra_kwargs,
+			**kwargs,
 			) -> str:
-		"""
+		r"""
 		Return a string-based progress bar given some parameters.
 
-		:param n Number of finished iterations.
+		:param n: Number of finished iterations.
 		:param total: The expected total number of iterations.
 			If :py:obj:`None` only basic progress statistics are displayed (no ETA).
 		:param elapsed: Number of seconds passed since start.
 		:param ncols: The width of the entire output message.
 			If specified, dynamically resizes ``{bar}`` to stay within this bound.
 			If ``0``, will not print any bar (only stats). The fallback is ``{bar:10}``.
-		:param :param prefix: Prefix message (included in total width).
-			Use as ``{desc}`` in ``bar_format`` string.
+		:param prefix: Prefix message (included in total width). Use as ``{desc}`` in ``bar_format`` string.
 		:param ascii: If not set, use unicode (smooth blocks) to fill the meter.
 			The fallback is to use ASCII characters `` 123456789#``.
 		:param unit: The iteration unit.
@@ -531,10 +545,12 @@ class araokaat(Generic[_T]):
 			``remaining``, ``remaining_s``, ``eta``.
 			Note that a trailing ``": "`` is automatically removed after ``{desc}`` if the latter is empty.
 		:param postfix: Similar to ``prefix``, but placed at the end (e.g. for additional stats).
-			Postfix is usually a string (not a dict) for this method, and will if possible be set to ``postfix = ', ' + postfix``. However other types are supported.
+			Postfix is usually a string (not a dict) for this method, and will if possible be set to ``postfix = ', ' + postfix``.
+			However other types are supported.
 		:param unit_divisor: Ignored unless ``unit_scale`` is :py:obj:`True`.
 		:param initial: The initial counter value.
 		:param colour: Bar colour (e.g. ``'green'``, ``'#00ff00'``).
+		:param \*\*kwargs:
 
 		:returns: Formatted meter and stats, ready to display.
 		"""
@@ -559,8 +575,10 @@ class araokaat(Generic[_T]):
 		if rate is None and elapsed:
 			rate = (n - initial) / elapsed
 		inv_rate = 1 / rate if rate else None
-		rate_noinv_fmt = ((self.format_sizeof(rate) if unit_scale else f'{rate:5.2f}') if rate else '?') + unit + "/s"
-		rate_inv_fmt = ((self.format_sizeof(inv_rate) if unit_scale else f'{inv_rate:5.2f}') if inv_rate else '?') + "s/" + unit
+
+		_format_rate = lambda r: (self.format_sizeof(r) if unit_scale else f'{r:5.2f}')
+		rate_noinv_fmt = (_format_rate(rate) if rate else '?') + unit + "/s"
+		rate_inv_fmt = (_format_rate(inv_rate) if inv_rate else '?') + "s/" + unit
 		rate_fmt = rate_inv_fmt if inv_rate and inv_rate > 1 else rate_noinv_fmt
 
 		if unit_scale:
@@ -622,8 +640,10 @@ class araokaat(Generic[_T]):
 				"l_bar": l_bar,
 				"r_bar": r_bar,
 				"eta": eta_dt,
-				**extra_kwargs,
+				**kwargs,
 				}
+
+		full_bar: SupportsFormat
 
 		# total is known: we can predict some stats
 		if total:
@@ -706,25 +726,16 @@ class araokaat(Generic[_T]):
 
 	@classmethod
 	def _get_free_pos(cls, instance: Optional["araokaat"] = None) -> int:
-		"""
-		Skips specified instance.
-
-		:param instance:
-		"""
+		# Skips specified instance.
 
 		positions = {abs(inst.pos) for inst in cls._instances if inst is not instance and hasattr(inst, "pos")}
 		return min(set(range(len(positions) + 1)).difference(positions))
 
 	@classmethod
 	def _decr_instances(cls, instance: "araokaat") -> None:
-		"""
-		Remove from list and reposition another unfixed bar to fill the new gap.
-
-		This means that by default (where all nested bars are unfixed),
-		order is not maintained but screen flicker/blank space is minimised.
-
-		:param instance:
-		"""
+		# Remove from list and reposition another unfixed bar to fill the new gap.
+		# This means that by default (where all nested bars are unfixed),
+		# order is not maintained but screen flicker/blank space is minimised.
 
 		with cls._lock:
 			try:
@@ -844,19 +855,27 @@ class araokaat(Generic[_T]):
 		return not self < other
 
 	def __len__(self) -> int:
-		return (
-				self.total if self.iterable is None else self.iterable.shape[0] if hasattr(self.iterable, "shape")
-				else len(self.iterable) if hasattr(self.iterable, "__len__") else self.iterable.__length_hint__(
-				) if hasattr(self.iterable, "__length_hint__") else getattr(self, "total", None)
-				)
+		if self.iterable is None:
+			return self.total  # type: ignore[return-value]
+		elif hasattr(self.iterable, "shape"):
+			return self.iterable.shape[0]
+		elif hasattr(self.iterable, "__len__"):
+			return len(self.iterable)  # type: ignore[arg-type]
+		elif hasattr(self.iterable, "__length_hint__"):
+			return self.iterable.__length_hint__()
+		else:
+			return getattr(self, "total", None)  # type: ignore[return-value]
 
 	def __reversed__(self) -> Iterable[_T]:
+		if self.iterable is None:
+			raise TypeError("'araokaat' object is not reversible")
+
 		try:
 			orig = self.iterable
 		except AttributeError:
 			raise TypeError("'araokaat' object is not reversible")
 		else:
-			self.iterable = reversed(self.iterable)
+			self.iterable = reversed(self.iterable)  # type: ignore[call-overload]
 			return self.__iter__()
 		finally:
 			self.iterable = orig
@@ -896,6 +915,9 @@ class araokaat(Generic[_T]):
 	def __iter__(self) -> Iterable[_T]:
 		# Inlining instance variables as locals (speed optimisation)
 		iterable = self.iterable
+
+		if iterable is None:
+			raise TypeError("'araokaat' object is not iterable")
 
 		# If the bar is disabled, then just walk the iterable
 		# (note: keep this check outside the loop for performance)
@@ -1026,7 +1048,7 @@ class araokaat(Generic[_T]):
 		with self._lock:
 			if leave:
 				# stats for overall rate (no weighted average)
-				self._ema_dt = lambda: None
+				self._ema_dt = lambda *args: None
 				self.display(pos=0)
 				fp_write('\n')
 			else:
@@ -1073,8 +1095,7 @@ class araokaat(Generic[_T]):
 
 		if not nolock:
 			if lock_args:
-				if not self._lock.acquire(*lock_args):
-					return
+				self._lock.acquire(*lock_args)
 			else:
 				self._lock.acquire()
 
@@ -1214,6 +1235,12 @@ class araokaat(Generic[_T]):
 					)
 		if self.dynamic_ncols:
 			self.ncols, self.nrows = self.dynamic_ncols(self.fp)
+
+		rate: Optional[float] = None
+		_ema_dt = self._ema_dt()
+		if _ema_dt:
+			rate = self._ema_dn() / _ema_dt
+
 		return {
 				'n': self.n,
 				"total": self.total,
@@ -1224,7 +1251,7 @@ class araokaat(Generic[_T]):
 				"ascii": self.ascii,
 				"unit": self.unit,
 				"unit_scale": self.unit_scale,
-				"rate": self._ema_dn() / self._ema_dt() if self._ema_dt() else None,
+				"rate": rate,
 				"bar_format": self.bar_format,
 				"postfix": self.postfix,
 				"unit_divisor": self.unit_divisor,

@@ -20,7 +20,7 @@
 import atexit
 from threading import Event, Thread, current_thread
 from time import time
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Type
 from warnings import warn
 
 if TYPE_CHECKING:
@@ -46,9 +46,9 @@ class TMonitor(Thread):
 	:param sleep_interval: Time to sleep between monitoring checks.
 	"""
 
-	_test = {}  # internal vars for unit testing
+	_test: dict = {}  # internal vars for unit testing
 
-	def __init__(self, cls: type, sleep_interval: float):
+	def __init__(self, cls: Type["araokaat.araokaat"], sleep_interval: float):
 		Thread.__init__(self, name="araokaat_monitor")
 		self.daemon = True  # kill thread when main killed (KeyboardInterrupt)
 		self.woken = 0  # last time woken up, to sync with monitor

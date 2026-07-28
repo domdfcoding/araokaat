@@ -19,7 +19,9 @@ General helpers.
 # stdlib
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Optional, TextIO, Tuple
+from abc import abstractmethod
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Protocol, TextIO, Tuple, Union
 from unicodedata import east_asian_width
 from weakref import proxy
 
@@ -28,6 +30,7 @@ IS_WIN = any(CUR_OS.startswith(i) for i in ["win32", "cygwin"])
 IS_NIX = any(CUR_OS.startswith(i) for i in ["aix", "linux", "darwin", "freebsd"])
 RE_ANSI = re.compile(r"\x1b\[[;\d]*[A-Za-z]")
 
+colorama: Optional[ModuleType]
 try:
 	if IS_WIN:
 		# 3rd party
@@ -37,19 +40,30 @@ try:
 except ImportError:
 	colorama = None
 else:
-	try:
-		colorama.init(strip=False)
-	except TypeError:
-		colorama.init()
+	if colorama:
+		try:
+			colorama.init(strip=False)
+		except TypeError:
+			colorama.init()
 
 if TYPE_CHECKING:
 	# stdlib
-	from threading import RLock
+	from multiprocessing.synchronize import RLock as _MP_RLock
+	from threading import RLock as _T_RLock
+	RLock = Union[_MP_RLock, _T_RLock]
 
 	# this package
 	import araokaat
 
-__all__ = ["DefaultWriteLock", "DisableOnWriteError", "EMA", "FormatReplace", "disp_len", "disp_trim"]
+__all__ = [
+		"DefaultWriteLock",
+		"DisableOnWriteError",
+		"EMA",
+		"FormatReplace",
+		"SupportsFormat",
+		"disp_len",
+		"disp_trim",
+		]
 
 
 class FormatReplace:
@@ -86,6 +100,9 @@ class DisableOnWriteError:
 	def disable_on_exception(instance: "araokaat.araokaat", func: Callable[..., Any]) -> Callable[..., Any]:
 		"""
 		Quietly set ``instance.miniters=inf`` if ``func`` raises ``errno=5``.
+
+		:param instance:
+		:param func:
 		"""
 
 		instance = proxy(instance)
@@ -110,7 +127,7 @@ class DisableOnWriteError:
 
 		return inner
 
-	def __init__(self, wrapped: TextIO, instance: "araokaat.araokaat"):  # noqa: B042
+	def __init__(self, wrapped: TextIO, instance: "araokaat.araokaat"):
 		self.wrapper_setattr("_wrapped", wrapped)
 		if hasattr(wrapped, "write"):
 			self.wrapper_setattr(
@@ -130,16 +147,12 @@ class DisableOnWriteError:
 		setattr(self._wrapped, name, value)
 
 	def wrapper_getattr(self, name: str) -> Any:
-		"""
-		Actual ``self.getattr`` rather than ``self._wrapped.getattr``.
-		"""
+		# Actual ``self.getattr`` rather than ``self._wrapped.getattr``.
 
 		return getattr(self, name)
 
 	def wrapper_setattr(self, name: str, value: Any) -> None:
-		"""
-		Actual ``self.setattr`` rather than self._wrapped.setattr.
-		"""
+		# Actual ``self.setattr`` rather than self._wrapped.setattr.
 
 		object.__setattr__(self, name, value)
 
@@ -168,7 +181,7 @@ def _supports_unicode(fp: TextIO) -> bool:
 		return False
 
 
-def _is_ascii(s: str) -> bool:
+def _is_ascii(s: Union[str, TextIO]) -> bool:
 	if isinstance(s, str):
 		for c in s:
 			if ord(c) > 255:
@@ -179,7 +192,10 @@ def _is_ascii(s: str) -> bool:
 	return _supports_unicode(s)
 
 
-def _screen_shape_wrapper() -> Callable[[], Tuple[Optional[int], Optional[int]]]:  # pragma: no cover
+_ScreenSize = Tuple[Optional[int], Optional[int]]
+
+
+def _screen_shape_wrapper() -> Callable[[TextIO], _ScreenSize]:  # pragma: no cover
 	"""
 	Return a function which returns console dimensions ``(width, height)``.
 	"""
@@ -187,9 +203,11 @@ def _screen_shape_wrapper() -> Callable[[], Tuple[Optional[int], Optional[int]]]
 	# stdlib
 	from os import get_terminal_size
 
-	def inner(fp: TextIO) -> Tuple[Optional[int], Optional[int]]:
+	def inner(fp: TextIO) -> _ScreenSize:
+		if not hasattr(fp, "fileno"):
+			return None, None
 		try:
-			cols, lines = get_terminal_size(getattr(fp, "fileno", lambda: None)())
+			cols, lines = get_terminal_size(fp.fileno())
 			return cols - 1, lines - 1
 		except Exception:
 			return None, None
@@ -200,6 +218,8 @@ def _screen_shape_wrapper() -> Callable[[], Tuple[Optional[int], Optional[int]]]
 def disp_len(data: str) -> int:
 	"""
 	Returns the real on-screen length of a string which may contain ANSI control codes and wide chars.
+
+	:param data:
 	"""
 
 	s = RE_ANSI.sub('', data)
@@ -209,6 +229,9 @@ def disp_len(data: str) -> int:
 def disp_trim(data: str, length: int) -> str:
 	"""
 	Trim a string which may contain ANSI control characters.
+
+	:param data:
+	:param length:
 	"""
 
 	if len(data) == disp_len(data):
@@ -227,16 +250,14 @@ def disp_trim(data: str, length: int) -> str:
 
 
 def _trlock(*args, **kwargs) -> Optional["RLock"]:
-	"""
-	Threading RLock.
-	"""
+	# Threading RLock.
 
 	try:
 		# stdlib
 		from threading import RLock
 		return RLock(*args, **kwargs)
 	except (ImportError, OSError):  # pragma: no cover
-		pass
+		return None
 
 
 class DefaultWriteLock:
@@ -256,6 +277,8 @@ class DefaultWriteLock:
 	# NB: Do not create multiprocessing lock as it sets the multiprocessing
 	# context, disallowing `spawn()`/`forkserver()`
 	th_lock = _trlock()
+
+	mp_lock: ClassVar[Optional["RLock"]]
 
 	def __init__(self) -> None:
 		# Create global parallelism locks to avoid racing issues with parallel
@@ -305,7 +328,7 @@ class EMA:
 
 	def __init__(self, smoothing: float = 0.3):
 		self.alpha = smoothing
-		self.last = 0
+		self.last: float = 0
 		self.calls = 0
 
 	def __call__(self, x: Optional[float] = None) -> float:
@@ -321,3 +344,11 @@ class EMA:
 			self.calls += 1
 
 		return self.last / (1 - beta**self.calls) if self.calls else self.last
+
+
+class SupportsFormat(Protocol):
+	__slots__ = ()
+
+	@abstractmethod
+	def __format__(self, __s: str) -> str:
+		pass
