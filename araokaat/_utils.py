@@ -77,7 +77,7 @@ class FormatReplace:
 		>>> f"{a:5d}"
 		'something'
 
-	"""
+	"""  # noqa: D400
 
 	def __init__(self, replace: str = ''):
 		self.replace = replace
@@ -346,7 +346,7 @@ class EMA:
 		return self.last / (1 - beta**self.calls) if self.calls else self.last
 
 
-class SupportsFormat(Protocol):
+class SupportsFormat(Protocol):  # noqa: D101
 	__slots__ = ()
 
 	@abstractmethod
