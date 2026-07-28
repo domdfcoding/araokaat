@@ -81,7 +81,7 @@ araokaat
 .. |language| image:: https://img.shields.io/github/languages/top/domdfcoding/araokaat
 	:alt: GitHub top language
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/domdfcoding/araokaat/v0.0.0
+.. |commits-since| image:: https://img.shields.io/github/commits-since/domdfcoding/araokaat/v0.1.0b1
 	:target: https://github.com/domdfcoding/araokaat/pulse
 	:alt: GitHub commits since tagged version
 
