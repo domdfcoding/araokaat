@@ -267,12 +267,38 @@ class araokaat(Generic[_T]):
 	out  : decorated iterator.
 	"""
 
-	monitor_interval = 10  # set to 0 to disable the thread
-	monitor = None
+	monitor_interval: ClassVar[int] = 10  # set to 0 to disable the thread
+	monitor: ClassVar[Optional[TMonitor]] = None
 	_instances: Set["araokaat"] = WeakSet()  # type: ignore[assignment]
 	_lock: ClassVar[DefaultWriteLock]
+
+	iterable: Optional[Iterable[_T]]
+	desc: str
+	total: Optional[float]
+	leave: bool
+	fp: TextIO
+	ncols: Optional[int]
+	nrows: Optional[int]
+	mininterval: float
+	maxinterval: float
+	miniters: float
+	dynamic_miniters: bool
+	ascii: Union[str, bool]
 	disable: bool
+	unit: str
+	unit_scale: Union[bool, float]
+	unit_divisor: float
+	initial: float
+	lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None]
+	delay: float
+	dynamic_ncols: Optional[Callable[[TextIO], _ScreenSize]]
+	smoothing: float
+	_ema_dn: EMA
 	_ema_dt: Callable[..., Optional[float]]
+	_ema_miniters: EMA
+	bar_format: Optional[str]
+	colour: Optional[str]
+	postfix: Union[str, Mapping[str, Any], None]
 
 	@overload
 	def __init__(
@@ -422,14 +448,14 @@ class araokaat(Generic[_T]):
 		self.desc = desc
 		self.total = total
 		self.leave = leave
-		self.fp: TextIO = file
+		self.fp = file
 		self.ncols = ncols
 		self.nrows = nrows
 		self.mininterval = mininterval
 		self.maxinterval = maxinterval
 		self.miniters = miniters
 		self.dynamic_miniters = dynamic_miniters
-		self.ascii: Union[str, bool] = ascii
+		self.ascii = ascii
 		self.disable = disable
 		self.unit = unit
 		self.unit_scale = unit_scale
