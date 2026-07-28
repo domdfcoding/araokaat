@@ -1525,7 +1525,7 @@ def test_set_description():
 			assert t.desc == "Hello"
 			t.set_description_str("World", False)
 			assert t.desc == "World"
-			t.set_description(None, False)
+			t.set_description(None, False)  # type: ignore[arg-type]
 			assert t.desc == ''
 		assert "World" not in our_file.getvalue()
 

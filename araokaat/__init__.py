@@ -278,7 +278,7 @@ class araokaat(Generic[_T]):
 	def __init__(
 			self: "araokaat[None]",
 			iterable: None = None,
-			desc: Optional[str] = None,
+			desc: str = '',
 			total: Optional[float] = None,
 			leave: bool = True,
 			file: Optional[TextIO] = None,
@@ -307,7 +307,7 @@ class araokaat(Generic[_T]):
 	def __init__(
 			self: "araokaat[_T]",
 			iterable: Iterable[_T],
-			desc: Optional[str] = None,
+			desc: str = '',
 			total: Optional[float] = None,
 			leave: bool = True,
 			file: Optional[TextIO] = None,
@@ -335,7 +335,7 @@ class araokaat(Generic[_T]):
 	def __init__(
 			self,
 			iterable: Optional[Iterable[_T]] = None,
-			desc: Optional[str] = None,
+			desc: str = '',
 			total: Optional[float] = None,
 			leave: bool = True,
 			file: Optional[TextIO] = None,
@@ -419,7 +419,7 @@ class araokaat(Generic[_T]):
 
 		# Store the arguments
 		self.iterable = iterable
-		self.desc = desc or ''
+		self.desc = desc
 		self.total = total
 		self.leave = leave
 		self.fp: TextIO = file
@@ -944,7 +944,7 @@ class araokaat(Generic[_T]):
 		self._ema_miniters = EMA(self.smoothing)
 		self.refresh()
 
-	def set_description(self, desc: Optional[str] = '', refresh: bool = True) -> None:
+	def set_description(self, desc: str = '', refresh: bool = True) -> None:
 		"""
 		Set/modify description of the progress bar.
 
