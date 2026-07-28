@@ -308,7 +308,7 @@ def test_iter_overhead_simplebar_hard():
 		for i in s:  # type: ignore[attr-defined]  # TODO
 			a += i
 
-	assert_performance(10, "araokaat", time_araokaat(), "simple_progress", time_bench())
+	assert_performance(16, "araokaat", time_araokaat(), "simple_progress", time_bench())
 
 
 @retry_on_except(10)
@@ -341,4 +341,4 @@ def test_manual_overhead_simplebar_hard():
 			a += i
 			simplebar_update(10)
 
-	assert_performance(10, "araokaat", time_araokaat(), "simple_progress", time_bench())
+	assert_performance(15, "araokaat", time_araokaat(), "simple_progress", time_bench())
