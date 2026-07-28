@@ -48,6 +48,7 @@ from typing import (
 		Optional,
 		Set,
 		TextIO,
+		Tuple,
 		Type,
 		TypeVar,
 		Union,
@@ -294,9 +295,9 @@ class araokaat(Generic[_T]):
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
-			postfix: Optional[Mapping[str, Any]] = None,
+			postfix: Union[str, Mapping[str, Any], None] = None,
 			unit_divisor: float = 1000,
-			lock_args: Optional[tuple] = None,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
 			nrows: Optional[int] = None,
 			colour: Optional[str] = None,
 			delay: float = 0.0,
@@ -323,9 +324,9 @@ class araokaat(Generic[_T]):
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
-			postfix: Optional[Mapping[str, Any]] = None,
+			postfix: Union[str, Mapping[str, Any], None] = None,
 			unit_divisor: float = 1000,
-			lock_args: Optional[tuple] = None,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
 			nrows: Optional[int] = None,
 			colour: Optional[str] = None,
 			delay: float = 0.0,
@@ -351,9 +352,9 @@ class araokaat(Generic[_T]):
 			bar_format: Optional[str] = None,
 			initial: float = 0,
 			position: Optional[int] = None,
-			postfix: Optional[Mapping[str, Any]] = None,
+			postfix: Union[str, Mapping[str, Any], None] = None,
 			unit_divisor: float = 1000,
-			lock_args: Optional[tuple] = None,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
 			nrows: Optional[int] = None,
 			colour: Optional[str] = None,
 			delay: float = 0.0,
@@ -442,14 +443,15 @@ class araokaat(Generic[_T]):
 		self._ema_dt = EMA(smoothing)
 		self._ema_miniters = EMA(smoothing)
 		self.bar_format = bar_format
-		self.postfix: Union[str, Mapping[str, Any], None] = None
 		self.colour = colour
 		self._time = time
-		if postfix:
-			try:
-				self.set_postfix(refresh=False, **postfix)
-			except TypeError:
-				self.postfix = postfix
+
+		if postfix is None:
+			self.postfix = None
+		elif isinstance(postfix, Mapping):
+			self.set_postfix(refresh=False, **postfix)
+		else:
+			self.postfix = postfix
 
 		# Init the iterations counters
 		self.last_print_n = initial
@@ -875,7 +877,11 @@ class araokaat(Generic[_T]):
 		if not nolock:
 			self._lock.release()
 
-	def refresh(self, nolock: bool = False, lock_args: Optional[tuple] = None) -> None:
+	def refresh(
+			self,
+			nolock: bool = False,
+			lock_args: Union[Tuple[Optional[bool], Optional[float]], Tuple[Optional[bool]], None] = None,
+			) -> None:
 		"""
 		Force refresh the display of this bar.
 
