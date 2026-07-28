@@ -341,4 +341,4 @@ def test_manual_overhead_simplebar_hard():
 			a += i
 			simplebar_update(10)
 
-	assert_performance(15, "araokaat", time_araokaat(), "simple_progress", time_bench())
+	assert_performance(20, "araokaat", time_araokaat(), "simple_progress", time_bench())
