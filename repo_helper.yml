@@ -5,7 +5,7 @@ copyright_years: '2026'
 author: 'Dominic Davis-Foster'
 email: 'dominic@davis-foster.co.uk'
 username: 'domdfcoding'
-version: '0.1.0b1.post1'
+version: '0.1.0b2'
 license: 'MPL-2.0'
 short_desc: 'Python progressbar for CLI applications.'
 
