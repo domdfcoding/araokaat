@@ -36,6 +36,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from numbers import Number
 from time import time
+from types import TracebackType
 from typing import (
 		Any,
 		Callable,
@@ -713,7 +714,12 @@ class araokaat(Generic[_T]):
 	def __enter__(self: Self) -> Self:
 		return self
 
-	def __exit__(self, exc_type, exc_value, traceback) -> None:
+	def __exit__(
+			self,
+			exc_type: Optional[Type[BaseException]],
+			exc_value: Optional[BaseException],
+			traceback: Optional[TracebackType],
+			) -> None:
 		try:
 			self.close()
 		except AttributeError:
